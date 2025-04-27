@@ -55,6 +55,13 @@ func (r TodoRepo) GetToDos(params *models.ParamsBag) ([]models.ToDo, error) {
 	}
 	// Apply sorting.
 	query = fmt.Sprintf("%s ORDER BY %s %s", query, params.Sort.Field, ascending)
+	// Apply pagination.
+	if params.Paging.Limit > 0 {
+		query = fmt.Sprintf("%s LIMIT %d", query, params.Paging.Limit)
+		if params.Paging.Offset > 0 {
+			query = fmt.Sprintf("%s OFFSET %d", query, params.Paging.Offset)
+		}
+	}
 	// Execute query.
 	rows, err := r.queries.db.QueryContext(context.Background(), query)
 	if err != nil {

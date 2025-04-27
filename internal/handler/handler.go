@@ -3,6 +3,7 @@ package handler
 import (
 	"LazyToDo/internal/models"
 	"LazyToDo/internal/repository"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"io"
 	"log"
@@ -139,10 +140,16 @@ func readRequestBody(c *gin.Context) []byte {
 }
 
 func aggregateParams(c *gin.Context) *models.ParamsBag {
+	return &models.ParamsBag{
+		Sort:   extractSortingParams(c),
+		Filter: extractFilterParams(c),
+		Paging: extractPaginationParams(c),
+	}
+}
+
+func extractSortingParams(c *gin.Context) models.SortParams {
 	orderBy := c.Query("orderBy")
 	ascOrdering := c.Query("ASC")
-	statusFilter := c.Query("status")
-	// @todo add pagination (offsets)
 	asc := true
 	switch ascOrdering {
 	case "true":
@@ -155,15 +162,43 @@ func aggregateParams(c *gin.Context) *models.ParamsBag {
 		asc = true
 		break
 	}
-	sortParams := models.SortParams{Field: orderBy, ASC: asc}
+	return models.SortParams{Field: orderBy, ASC: asc}
+}
 
+func extractFilterParams(c *gin.Context) models.FilterParams {
+	statusFilter := c.Query("status")
 	var filters []models.Filter
 	if statusFilter != "" {
 		filters = append(filters, models.Filter{Field: "status", Value: statusFilter})
 	}
-	filterParams := models.FilterParams{Filters: filters}
-	return &models.ParamsBag{
-		Sort:   sortParams,
-		Filter: filterParams,
+	return models.FilterParams{Filters: filters}
+}
+
+func extractPaginationParams(c *gin.Context) models.PaginationParams {
+	limitParam := c.Query("limit")
+	pageParam := c.Query("page")
+	// If no limit - don't apply pagination.
+	if len(limitParam) == 0 {
+		return models.PaginationParams{}
 	}
+	limit, err := strconv.Atoi(limitParam)
+	if err != nil {
+		fmt.Println(err)
+		limit = 0
+	}
+	// If no page specified, apply limit without offset.
+	if len(pageParam) == 0 {
+		return models.PaginationParams{Limit: limit}
+	}
+
+	page, err := strconv.Atoi(pageParam)
+	if err != nil {
+		fmt.Println(err)
+		page = 0
+	}
+	offset := (page - 1) * limit
+	if offset < 0 {
+		offset = 0
+	}
+	return models.PaginationParams{Limit: limit, Offset: offset}
 }
