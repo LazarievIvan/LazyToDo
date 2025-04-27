@@ -10,6 +10,9 @@ COPY . .
 # Migration tool.
 RUN go install -tags "postgres" github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 
+# Swagger.
+COPY "cmd/todo/docs/swagger.yaml" "/app/cmd/todo/docs/swagger.yaml"
+
 # App.
 RUN go build -o /app/lazy-todo ./cmd/todo
 
@@ -19,6 +22,7 @@ WORKDIR /app
 
 COPY --from=builder /app/lazy-todo .
 COPY --from=builder /go/bin/migrate /usr/local/bin/migrate
+COPY --from=builder "/app/cmd/todo/docs/swagger.yaml" "/app/cmd/todo/docs/swagger.yaml"
 
 COPY migrations /app/migrations
 

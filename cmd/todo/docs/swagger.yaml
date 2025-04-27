@@ -1,0 +1,228 @@
+openapi: 3.0.0
+info:
+  title: RESTful Todo List service
+  description: Managing todo items through a web API.
+  version: 1.0.0
+paths:
+  /add:
+    post:
+      summary: Add To-Do item
+      description: Add ToDo item with description and custom status.
+      tags:
+        - todos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                description:
+                  type: string
+                  example: "Make To-Do list service"
+                status:
+                  type: string
+                  example: "In progress"
+      responses:
+        200:
+          description: Item added
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    description:
+                      type: string
+                    status:
+                      type: string
+                    created:
+                      type: integer
+                      format: timestamp
+                    updated:
+                      type: integer
+                      format: timestamp
+        400:
+          description: Failed to process JSON
+        500:
+          description: Failed creating To-Do item
+
+  /todos:
+    get:
+      summary: Get all To-Do items
+      description: Retrieves all to-do items (can be sorted/filtered/paginated).
+      tags:
+        - todos
+      parameters:
+        - name: status
+          in: query
+          description: Filter to-dos by status
+          required: false
+          schema:
+            type: string
+        - name: orderBy
+          in: query
+          description: Sort by field.
+          required: false
+          schema:
+            type: string
+        - name: ASC
+          in: query
+          description: Filtering (ASC/DESC). ASC applied by default.
+          required: false
+          schema:
+            type: boolean
+            example: true
+        - name: limit
+          in: query
+          description: Limit number of items per request
+          required: false
+          schema:
+            type: integer
+            example: 5
+        - name: page
+          in: query
+          description: Page number
+          required: false
+          schema:
+            type: integer
+            example: 2
+      responses:
+        200:
+          description: Got them all. Retrieved all items.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    description:
+                      type: string
+                    status:
+                      type: string
+                    created:
+                      type: integer
+                      format: timestamp
+                    updated:
+                      type: integer
+                      format: timestamp
+        500:
+          description: Failed getting To-Do items
+        404:
+          description: No To-Do items found
+
+  /todos/{id}:
+    get:
+      summary: Get To-Do by ID.
+      description: Retrieves To-Do by given ID.
+      tags:
+        - todos
+      parameters:
+        - name: id
+          in: path
+          description: To-Do item ID.
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Retrieved item
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    description:
+                      type: string
+                    status:
+                      type: string
+                    created:
+                      type: integer
+                      format: timestamp
+                    updated:
+                      type: integer
+                      format: timestamp
+        500:
+          description: Failed getting To-Do item
+        400:
+          description: Error processing request
+    put:
+      summary: Update To-Do by ID
+      description: Update To-Do item with new description/status.
+      tags:
+        - todos
+      parameters:
+        - name: id
+          in: path
+          description: To-Do item ID.
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                description:
+                  type: string
+                  example: "New description"
+                status:
+                  type: string
+                  example: "New status"
+      responses:
+        200:
+          description: Updated item
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    description:
+                      type: string
+                    status:
+                      type: string
+                    created:
+                      type: integer
+                      format: timestamp
+                    updated:
+                      type: integer
+                      format: timestamp
+        500:
+          description: Failed updating To-Do item
+        400:
+          description: Error processing request
+    delete:
+      summary: Delete To-Do item by ID
+      description: Deletes To-Do item by given ID.
+      tags:
+        - todos
+      parameters:
+        - name: id
+          in: path
+          description: To-Do item ID.
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Item deleted
+        500:
+          description: Failed deleting To-Do item
+        400:
+          description: Error processing request.

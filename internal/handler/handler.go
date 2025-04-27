@@ -104,7 +104,7 @@ func UpdateToDo(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed updating To-Do item", "id": id, "error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Update item", "item": item})
+	c.JSON(http.StatusOK, gin.H{"message": "Updated item", "item": item})
 }
 
 // DeleteToDo processes request for deleting single to-do item from DB by given id from params.
