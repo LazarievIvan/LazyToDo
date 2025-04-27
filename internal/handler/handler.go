@@ -13,7 +13,7 @@ import (
 // TodoRepository defines repository for manipulating to-do items.
 type TodoRepository interface {
 	CreateToDo(*models.ToDo) (models.ToDo, error)
-	GetToDos() ([]models.ToDo, error)
+	GetToDos(bag *models.ParamsBag) ([]models.ToDo, error)
 	GetToDo(id int64) (models.ToDo, error)
 	UpdateToDo(updatedItem *models.ToDo, id int64) (models.ToDo, error)
 	DeleteToDo(id int64) error
@@ -50,9 +50,15 @@ func AddToDo(c *gin.Context) {
 // GetAllToDos processes request for getting all to-do items from DB.
 func GetAllToDos(c *gin.Context) {
 	handler := createHandler()
-	todos, err := handler.repo.GetToDos()
+
+	params := aggregateParams(c)
+	todos, err := handler.repo.GetToDos(params)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed getting To-Do items", "error": err.Error()})
+		return
+	}
+	if len(todos) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"message": "No To-Do items found"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Got them all", "items": todos})
@@ -130,4 +136,34 @@ func readRequestBody(c *gin.Context) []byte {
 		log.Printf("Failed to read request body: %v", err)
 	}
 	return body
+}
+
+func aggregateParams(c *gin.Context) *models.ParamsBag {
+	orderBy := c.Query("orderBy")
+	ascOrdering := c.Query("ASC")
+	statusFilter := c.Query("status")
+	// @todo add pagination (offsets)
+	asc := true
+	switch ascOrdering {
+	case "true":
+		asc = true
+		break
+	case "false":
+		asc = false
+		break
+	default:
+		asc = true
+		break
+	}
+	sortParams := models.SortParams{Field: orderBy, ASC: asc}
+
+	var filters []models.Filter
+	if statusFilter != "" {
+		filters = append(filters, models.Filter{Field: "status", Value: statusFilter})
+	}
+	filterParams := models.FilterParams{Filters: filters}
+	return &models.ParamsBag{
+		Sort:   sortParams,
+		Filter: filterParams,
+	}
 }

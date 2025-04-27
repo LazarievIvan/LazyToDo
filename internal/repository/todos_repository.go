@@ -28,6 +28,68 @@ func NewToDoRepo() TodoRepo {
 	return TodoRepo{queries: queries}
 }
 
+// GetToDos retrieves all to-dos within given parameters.
+// If no parameters passed - all to-dos are retrieved.
+// Supported: sorting by id/dates; filtering by status.
+func (r TodoRepo) GetToDos(params *models.ParamsBag) ([]models.ToDo, error) {
+	// Sort by ID ASC by default.
+	if len(params.Sort.Field) == 0 {
+		params.Sort.Field = "id"
+		params.Sort.ASC = true
+	}
+	ascending := "ASC"
+	if params.Sort.ASC == false {
+		ascending = "DESC"
+	}
+	// Build base query.
+	query := "SELECT * FROM todos"
+	// Add filters if any.
+	if len(params.Filter.Filters) > 0 {
+		query = fmt.Sprintf("%s WHERE", query)
+		for i, filter := range params.Filter.Filters {
+			query = fmt.Sprintf("%s %s = '%s'", query, filter.Field, filter.Value)
+			if i < len(params.Filter.Filters)-1 {
+				query += " AND "
+			}
+		}
+	}
+	// Apply sorting.
+	query = fmt.Sprintf("%s ORDER BY %s %s", query, params.Sort.Field, ascending)
+	// Execute query.
+	rows, err := r.queries.db.QueryContext(context.Background(), query)
+	if err != nil {
+		return nil, err
+	}
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}(rows)
+	// Parse response.
+	var items []models.ToDo
+	for rows.Next() {
+		var i models.ToDo
+		if err := rows.Scan(
+			&i.ID,
+			&i.Description,
+			&i.Status,
+			&i.Created,
+			&i.Updated,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 // CreateToDo writes to-do item to DB.
 func (r TodoRepo) CreateToDo(item *models.ToDo) (models.ToDo, error) {
 	// Check given status, if it's missing - set default ("TO DO") one.
@@ -47,25 +109,11 @@ func (r TodoRepo) CreateToDo(item *models.ToDo) (models.ToDo, error) {
 	return parseItem(insertedItem), nil
 }
 
-// GetToDos retrieves all to-do items from DB.
-func (r TodoRepo) GetToDos() ([]models.ToDo, error) {
-	todos, err := r.queries.GetTodos(context.Background())
-	if err != nil {
-		return nil, err
-	}
-
-	var items []models.ToDo
-	for _, t := range todos {
-		items = append(items, parseItem(t))
-	}
-	return items, nil
-}
-
 // GetToDo retrieves single to-do item from DB by given id.
 func (r TodoRepo) GetToDo(id int64) (models.ToDo, error) {
 	todo, err := r.queries.GetTodo(context.Background(), id)
 	if err != nil {
-		return models.ToDo{}, nil
+		return models.ToDo{}, err
 	}
 	return parseItem(todo), nil
 }
@@ -101,7 +149,11 @@ func (r TodoRepo) UpdateToDo(updatedItem *models.ToDo, id int64) (models.ToDo, e
 
 // DeleteToDo deletes single to-do item from DB by given id.
 func (r TodoRepo) DeleteToDo(id int64) error {
-	err := r.queries.DeleteTodo(context.Background(), id)
+	_, err := r.queries.GetTodo(context.Background(), id)
+	if err != nil {
+		return err
+	}
+	err = r.queries.DeleteTodo(context.Background(), id)
 	if err != nil {
 		return err
 	}
