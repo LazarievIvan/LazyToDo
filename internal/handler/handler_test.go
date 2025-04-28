@@ -14,6 +14,7 @@ import (
 
 const DummyId = 1
 
+// mockRepo implements interface TodoRepository
 type mockRepo struct {
 	Error       error
 	ReturnValue models.ToDo
@@ -57,6 +58,7 @@ func (m *mockRepo) DeleteToDo(id int64) error {
 	return nil
 }
 
+// TestAddToDo covers all possible cases of adding to-do with respective return statuses.
 func TestAddToDo(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -105,6 +107,7 @@ func TestAddToDo(t *testing.T) {
 	}
 }
 
+// TestGetAllToDos covers all possible cases of getting all to-do with respective return statuses.
 func TestGetAllToDos(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -153,6 +156,7 @@ func TestGetAllToDos(t *testing.T) {
 	}
 }
 
+// TestGetSingleToDo covers all possible cases of getting single to-do with respective return statuses.
 func TestGetSingleToDo(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	tests := []struct {
@@ -213,6 +217,7 @@ func TestGetSingleToDo(t *testing.T) {
 	}
 }
 
+// TestUpdateToDo covers all possible cases of updating single to-do with respective return statuses.
 func TestUpdateToDo(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	tests := []struct {
@@ -289,6 +294,7 @@ func TestUpdateToDo(t *testing.T) {
 	}
 }
 
+// TestDeleteToDo covers all possible cases of deleting single to-do with respective return statuses.
 func TestDeleteToDo(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	tests := []struct {
