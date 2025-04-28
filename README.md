@@ -38,6 +38,9 @@ Import postman collection, found in repository and refer to **API Endpoints**.
 ### Swagger
 Swagger can be accessed at `http://localhost:8080/swagger/index.html`. From there it's straightforward.
 
+### Automated tests
+`handler.go` is covered with Unit tests. You can run them from root directory using `go test -v ./...`
+
 ---
 ## API Endpoints
 
