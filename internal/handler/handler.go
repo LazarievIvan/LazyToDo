@@ -3,6 +3,7 @@ package handler
 import (
 	"LazyToDo/internal/models"
 	"LazyToDo/internal/repository"
+	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"io"
@@ -25,7 +26,7 @@ type TodoHandler struct {
 	repo TodoRepository
 }
 
-func createHandler() TodoHandler {
+var createHandler = func() TodoHandler {
 	return TodoHandler{repo: repository.NewToDoRepo()}
 }
 
@@ -35,14 +36,24 @@ func AddToDo(c *gin.Context) {
 
 	item, err := models.FromJson(body)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Failed to process JSON", "error": err.Error()})
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"message": "Failed to process JSON",
+				"error":   err.Error(),
+			})
 		return
 	}
 
 	handler := createHandler()
 	item, err = handler.repo.CreateToDo(&item)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed creating To-Do item", "error": err.Error()})
+		var dbError *models.DBError
+		if errors.As(err, &dbError) {
+			c.JSON(dbError.Code(), gin.H{"message": dbError.Error(), "error": err.Error()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed creating To-Do item", "error": err.Error()})
+		}
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Item added", "item": item})
@@ -54,8 +65,14 @@ func GetAllToDos(c *gin.Context) {
 
 	params := aggregateParams(c)
 	todos, err := handler.repo.GetToDos(params)
+
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed getting To-Do items", "error": err.Error()})
+		var dbError *models.DBError
+		if errors.As(err, &dbError) {
+			c.JSON(dbError.Code(), gin.H{"message": dbError.Error(), "error": err.Error()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed getting To-Do items", "error": err.Error()})
+		}
 		return
 	}
 	if len(todos) == 0 {
@@ -72,11 +89,25 @@ func GetSingleToDo(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Error processing request", "error": err.Error()})
 		return
 	}
+	if id < 1 {
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"message": "Invalid request",
+				"error":   fmt.Sprintf("Invalid id: %s", c.Param("id")),
+			})
+		return
+	}
 
 	handler := createHandler()
 	item, err := handler.repo.GetToDo(int64(id))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed getting To-Do item", "id": id, "error": err.Error()})
+		var dbError *models.DBError
+		if errors.As(err, &dbError) {
+			c.JSON(dbError.Code(), gin.H{"message": dbError.Error(), "error": err.Error()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed getting To-Do item", "id": id, "error": err.Error()})
+		}
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Retrieved item", "item": item})
@@ -89,19 +120,38 @@ func UpdateToDo(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Error processing request", "error": err.Error()})
 		return
 	}
+	if id < 1 {
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"message": "Invalid request",
+				"error":   fmt.Sprintf("Invalid id: %s", c.Param("id")),
+			})
+		return
+	}
 
 	body := readRequestBody(c)
 
 	item, err := models.FromJson(body)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Failed to process JSON", "error": err.Error()})
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"message": "Failed to process JSON",
+				"error":   err.Error(),
+			})
 		return
 	}
 
 	handler := createHandler()
 	item, err = handler.repo.UpdateToDo(&item, int64(id))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed updating To-Do item", "id": id, "error": err.Error()})
+		var dbError *models.DBError
+		if errors.As(err, &dbError) {
+			c.JSON(dbError.Code(), gin.H{"message": dbError.Error(), "error": err})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed updating To-Do item", "id": id, "error": err.Error()})
+		}
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Updated item", "item": item})
@@ -111,16 +161,37 @@ func UpdateToDo(c *gin.Context) {
 func DeleteToDo(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Error processing request", "error": err.Error()})
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"message": "Error processing request",
+				"error":   err.Error(),
+			})
+		return
+	}
+	if id < 1 {
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"message": "Invalid request",
+				"error":   fmt.Sprintf("Invalid id: %s", c.Param("id")),
+			})
 		return
 	}
 
 	handler := createHandler()
 	err = handler.repo.DeleteToDo(int64(id))
+
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed deleting To-Do item", "id": id, "error": err.Error()})
+		var dbError *models.DBError
+		if errors.As(err, &dbError) {
+			c.JSON(dbError.Code(), gin.H{"message": dbError.Error(), "error": err.Error()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed deleting To-Do item", "id": id, "error": err.Error()})
+		}
 		return
 	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "Item deleted", "ID": id})
 }
 

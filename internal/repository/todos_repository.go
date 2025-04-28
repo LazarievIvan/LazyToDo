@@ -4,10 +4,10 @@ import (
 	"LazyToDo/internal/models"
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	_ "github.com/lib/pq" // blank import to initialize the driver
 	"log"
+	"net/http"
 	"strings"
 	"time"
 )
@@ -111,7 +111,7 @@ func (r TodoRepo) CreateToDo(item *models.ToDo) (models.ToDo, error) {
 		Updated:     sql.NullInt64{Int64: time.Now().Unix(), Valid: true},
 	})
 	if err != nil {
-		return models.ToDo{}, err
+		return models.ToDo{}, models.NewDBError("Unable to create item with id", http.StatusInternalServerError, err)
 	}
 	return parseItem(insertedItem), nil
 }
@@ -120,7 +120,7 @@ func (r TodoRepo) CreateToDo(item *models.ToDo) (models.ToDo, error) {
 func (r TodoRepo) GetToDo(id int64) (models.ToDo, error) {
 	todo, err := r.queries.GetTodo(context.Background(), id)
 	if err != nil {
-		return models.ToDo{}, err
+		return models.ToDo{}, models.NewDBError(fmt.Sprintf("Unable to find item with id %d", id), http.StatusNotFound, err)
 	}
 	return parseItem(todo), nil
 }
@@ -130,7 +130,7 @@ func (r TodoRepo) UpdateToDo(updatedItem *models.ToDo, id int64) (models.ToDo, e
 	// Get old item, that's being updated.
 	oldItem, err := r.GetToDo(id)
 	if err != nil {
-		return models.ToDo{}, errors.New(fmt.Sprintf("Unable to find item with id %d. Error: %v", id, err))
+		return models.ToDo{}, models.NewDBError(fmt.Sprintf("Unable to find item with id %d", id), http.StatusNotFound, err)
 	}
 
 	// If new description is missing, set it to old one, so it won't be updated.
@@ -149,7 +149,7 @@ func (r TodoRepo) UpdateToDo(updatedItem *models.ToDo, id int64) (models.ToDo, e
 		Updated:     sql.NullInt64{Int64: time.Now().Unix(), Valid: true},
 	})
 	if err != nil {
-		return models.ToDo{}, err
+		return models.ToDo{}, models.NewDBError(fmt.Sprintf("Unable to update item with id %d", id), http.StatusInternalServerError, err)
 	}
 	return parseItem(todo), nil
 }
@@ -158,11 +158,11 @@ func (r TodoRepo) UpdateToDo(updatedItem *models.ToDo, id int64) (models.ToDo, e
 func (r TodoRepo) DeleteToDo(id int64) error {
 	_, err := r.queries.GetTodo(context.Background(), id)
 	if err != nil {
-		return err
+		return models.NewDBError(fmt.Sprintf("Unable to find item with id %d", id), http.StatusNotFound, err)
 	}
 	err = r.queries.DeleteTodo(context.Background(), id)
 	if err != nil {
-		return err
+		return models.NewDBError(fmt.Sprintf("Unable to delete item with id %d", id), http.StatusInternalServerError, err)
 	}
 	return nil
 }
